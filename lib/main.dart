@@ -32,8 +32,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final String baseUrl = 'https://krista-staging.trackingworks.io';
-  String name = '';
+  final String _baseUrl = 'https://krista-staging.trackingworks.io';
+  String _name = '';
+  String _schedule = '';
+  late String _token;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -63,10 +65,16 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                       ElevatedButton(
-                          onPressed: () => login(_emailController.text, _passwordController.text),
+                          onPressed: () => _login(_emailController.text, _passwordController.text),
                           child: const Text('Login')),
+                      const SizedBox(height: 5.0,),
+                      ElevatedButton(
+                          onPressed: () => _getSchedule(_token, '', 1, 15, ''),
+                          child: const Text('Get Schedule')),
                       const SizedBox(height: 30.0,),
-                      Text(name),
+                      Text(_name),
+                      const SizedBox(height: 30.0,),
+                      Text(_schedule),
                     ],
                   ),
                 ]
@@ -76,20 +84,51 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void login(String email, String password) async {
+  void _getSchedule(String token, String date, int page, int perPage, String endDate) async {
+    print('get schedule function called');
+    Map<String, String> headers = {
+      'user-device': '3a9d2744b16c3a37',
+      'Authorization': 'Bearer $token',
+    };
+
+    try {
+      final res = await http.get(
+        Uri.parse('$_baseUrl/api/v1/employee/schedule?date=$date&page=$page&per_page=$perPage&endDate=$endDate'),
+        headers: headers,
+      );
+
+      print(res.statusCode);
+      print(res.body.toString());
+      var response = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        setState(() {
+          _schedule = res.body.toString();
+        });
+      } else {
+        setState(() {
+          _name = response['meta']['error'];
+        });
+      }
+    } catch (e) {
+      print(e.toString());
+    }
+  }
+
+  void _login(String email, String password) async {
     print('login function called');
     Map<String, String> headers = {
       'user-device': '97a95688f6ad1ab4',
     };
 
-    Map<String, String> body = {
-      'email': email,
-      'password': password,
-    };
+      Map<String, String> body = {
+        'email': email,
+        'password': password,
+      };
 
     try {
       final res = await http.post(
-        Uri.parse('$baseUrl/api/v1/employee/authentication/login'),
+        Uri.parse('$_baseUrl/api/v1/employee/authentication/login'),
         headers: headers,
         body: body,
       );
@@ -99,10 +138,13 @@ class _MyHomePageState extends State<MyHomePage> {
       var response = jsonDecode(res.body);
 
       if (res.statusCode == 200) {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const Home()));
+        setState(() {
+          _token = response['token'];
+          _name = response['data']['name'];
+        });
       } else {
         setState(() {
-          name = response['meta']['error'];
+          _name = response['meta']['error'];
         });
       }
     } catch (e) {
